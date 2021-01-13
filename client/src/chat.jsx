@@ -3,20 +3,28 @@ import {
   ApolloClient,
   InMemoryCache,
   ApolloProvider,
-  useQuery,
-  gql,
+  useSubscription,
   useMutation,
+  gql,
 } from "@apollo/client";
-
+import { WebSocketLink } from "@apollo/client/link/ws";
 import { Container, Row, Col, FormInput, Button } from "shards-react";
 
+const link = new WebSocketLink({
+  uri: `ws://localhost:4000/`,
+  options: {
+    reconnect: true,
+  },
+});
+
 const client = new ApolloClient({
+  link,
   uri: "http://localhost:4000/",
   cache: new InMemoryCache(),
 });
 
 const GET_MESSAGES = gql`
-  query {
+  subscription {
     messages {
       id
       content
@@ -32,11 +40,12 @@ const POST_MESSAGE = gql`
 `;
 
 const Messages = ({ user }) => {
-  const { data } = useQuery(GET_MESSAGES, {
-    pollInterval: 500,
-  });
+  const { data } = useSubscription(GET_MESSAGES);
+  if (!data) {
+    return null;
+  }
 
-  return !data ? null : (
+  return (
     <>
       {data.messages.map(({ id, user: messageUser, content }) => (
         <div
@@ -46,7 +55,7 @@ const Messages = ({ user }) => {
             paddingBottom: "1em",
           }}
         >
-          {user === messageUser && (
+          {user !== messageUser && (
             <div
               style={{
                 height: 50,
@@ -64,7 +73,7 @@ const Messages = ({ user }) => {
           )}
           <div
             style={{
-              background: user === messageUser ? "#58bf56" : "#e5e6ea",
+              background: user === messageUser ? "blue" : "#e5e6ea",
               color: user === messageUser ? "white" : "black",
               padding: "1em",
               borderRadius: "1em",
@@ -84,7 +93,6 @@ const Chat = () => {
     user: "Jack",
     content: "",
   });
-
   const [postMessage] = useMutation(POST_MESSAGE);
 
   const onSend = () => {
@@ -114,7 +122,6 @@ const Chat = () => {
             }
           />
         </Col>
-
         <Col xs={8}>
           <FormInput
             label="Content"
@@ -133,7 +140,9 @@ const Chat = () => {
           />
         </Col>
         <Col xs={2} style={{ padding: 0 }}>
-          <Button onClick={() => onsuspend()}>Send</Button>
+          <Button onClick={() => onSend()} style={{ width: "100%" }}>
+            Send
+          </Button>
         </Col>
       </Row>
     </Container>
